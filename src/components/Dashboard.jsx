@@ -25,6 +25,7 @@ function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [pciType, setPciType] = useState("Prediction based");
   const [mapData, setMapData] = useState([]);
+  const [dropdownOpen, setDropdownOpen] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -69,6 +70,13 @@ function Dashboard() {
     });
   };
 
+  const toggleDropdown = (user) => {
+    setDropdownOpen((prev) => ({
+      ...prev,
+      [user]: !prev[user],
+    }));
+  };
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -101,23 +109,63 @@ function Dashboard() {
 
     return statDict;
   };
-
   const renderUserStats = () => {
     return users
       .filter((user) => selectedUsers[user])
       .map((user) => {
         const userData = mapData.filter((entry) => entry[0] === user);
         const stats = getUserStats(userData);
+        const userTracks = mapData.filter((entry) => entry[0] === user);
 
         return (
           <div key={user}>
             <div className="mt-10 mb-10 border-t border-gray-500 w-full" />
-            <p
-              className="mb-5 text-xl cursor-pointer"
-              onClick={() => viewTrackOnMap(user)}
-            >
-              {user}
-            </p>
+            <p className="mb-5 text-xl">{user}</p>
+            <div className="relative inline-flex mt-4 mb-4">
+              <button
+                id={`hs-dropdown-${user}`}
+                type="button"
+                className="hs-dropdown-toggle py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none"
+                onClick={() => toggleDropdown(user)}
+              >
+                Tracks
+                <svg
+                  className={`size-4 transition-transform ${
+                    dropdownOpen[user] ? "rotate-180" : ""
+                  }`}
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              <div
+                className={`absolute left-0 w-full mt-2 bg-white shadow-md rounded-lg p-2 transition-opacity duration-200 ${
+                  dropdownOpen[user] ? "opacity-100" : "opacity-0 hidden"
+                }`}
+                style={{ maxHeight: "200px", overflowY: "auto" }}
+                aria-labelledby={`hs-dropdown-${user}`}
+              >
+                {userTracks.map((track, index) => (
+                  <a
+                    key={index}
+                    className="flex items-center gap-x-3.5 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
+                    href="#"
+                    onClick={() => viewTrackOnMap(track, user)}
+                  >
+                    Track {index + 1}
+                  </a>
+                ))}
+              </div>
+            </div>
             <table className="w-full border-collapse">
               <thead>
                 <tr>
@@ -176,15 +224,19 @@ function Dashboard() {
 
   const mapRef = useRef();
 
-  const viewTrackOnMap = (user) => {
-    if (!mapRef.current) return;
-
-    mapRef.current.eachLayer((layer) => {
-      if (layer.options && layer.options.user === user) {
-        mapRef.current.fitBounds(layer.getBounds());
-        layer.openPopup();
+  const viewTrackOnMap = (track, user) => {
+    const coordinates = track[3];
+    if (coordinates.length > 0) {
+      const bounds = coordinates.map((coord) => [coord[0], coord[1]]);
+      if (mapRef.current) {
+        mapRef.current.fitBounds(bounds);
       }
-    });
+    }
+    // Close the dropdown
+    setDropdownOpen((prev) => ({
+      ...prev,
+      [user]: false,
+    }));
   };
 
   return (
