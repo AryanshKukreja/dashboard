@@ -241,6 +241,28 @@ function Dashboard() {
 
   return (
     <div className="flex h-screen">
+      <button
+        type="button"
+        className="fixed top-4 left-4 text-white p-2 rounded"
+        onClick={toggleSidebar}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="lucide lucide-panel-left-open"
+        >
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M9 3v18" />
+          <path d="m14 9 3 3-3 3" />
+        </svg>
+      </button>
       <div
         id="docs-sidebar"
         className={`fixed top-0 left-0 bottom-0 z-[60] w-1/4 bg-gray-700 pt-7 pb-10 overflow-y-auto transition-transform duration-300 ${
@@ -256,7 +278,23 @@ function Dashboard() {
             aria-controls="docs-sidebar"
             aria-label="Close sidebar"
           >
-            <span className="sr-only">Close Sidebar</span>X
+            <span className="sr-only">Close Sidebar</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-panel-left-close"
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+              <path d="m16 15-3-3 3-3" />
+            </svg>
           </button>
         </div>
         <nav className="p-6 w-full flex flex-col flex-wrap">
@@ -289,35 +327,7 @@ function Dashboard() {
         <div className="flex flex-col items-center justify-start h-full mt-20 text-white">
           <div className="text-left w-full max-w-3xl">
             <div className="text-5xl font-bold">ROAD QUALITY DASHBOARD</div>
-            <div className="mt-4">
-              <span className="italic">Select PCI type:</span>
-              <div className="mt-2">
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    className="form-radio text-red-600"
-                    name="pciType"
-                    value="Prediction based"
-                    checked={pciType === "Prediction based"}
-                    onChange={handlePciTypeChange}
-                  />
-                  <span className="ml-2">Prediction based</span>
-                </label>
-              </div>
-              <div className="mt-2">
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    className="form-radio text-red-600"
-                    name="pciType"
-                    value="Velocity Based"
-                    checked={pciType === "Velocity Based"}
-                    onChange={handlePciTypeChange}
-                  />
-                  <span className="ml-2">Velocity Based</span>
-                </label>
-              </div>
-            </div>
+
             <div className="mt-8">
               <MapContainer
                 center={[17.42099148, 73.22085649]}
