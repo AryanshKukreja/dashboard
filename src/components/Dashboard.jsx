@@ -33,7 +33,7 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get("http://13.201.2.105/get_data_dump");
+      const response = await axios.get("http://3.110.153.107/get_data_dump");
       setMapData(response.data);
       const userNames = new Set(response.data.map((entry) => entry[0]));
       setUsers([...userNames]);
@@ -320,7 +320,7 @@ function Dashboard() {
             </div>
             <div className="mt-8">
               <MapContainer
-                center={[16.8557, 73.5453]}
+                center={[17.42099148, 73.22085649]}
                 zoom={12}
                 style={{ width: "100%", height: "600px" }}
                 ref={mapRef}
