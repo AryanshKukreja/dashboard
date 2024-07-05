@@ -4,11 +4,11 @@ import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, Polyline, Tooltip } from "react-leaflet";
 
 const colorDict = {
-  1: "green",
-  2: "blue",
+  1: "red",
+  2: "orange",
   3: "yellow",
-  4: "orange",
-  5: "red",
+  4: "blue",
+  5: "green",
 };
 
 const legendData = [
@@ -33,7 +33,7 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get("http://3.110.153.107/get_data_dump");
+      const response = await axios.get("https://pcibackend.xyz/get_data_dump");
       setMapData(response.data);
       const userNames = new Set(response.data.map((entry) => entry[0]));
       setUsers([...userNames]);
@@ -79,10 +79,6 @@ function Dashboard() {
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const handlePciTypeChange = (event) => {
-    setPciType(event.target.value);
   };
 
   const getUserStats = (userData) => {
@@ -196,7 +192,7 @@ function Dashboard() {
                       {data.distance_travelled.toFixed(2)}
                     </td>
                     <td className="text-left p-[8px] border border-white border-solid">
-                      {data.avg_velocity.toFixed(2)}
+                      {((data.avg_velocity * 18) / 5).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -370,8 +366,11 @@ function Dashboard() {
                         <div>
                           <p>User: {user}</p>
                           <p>PCI Score: {displayPci}</p>
-                          <p>Average Velocity: {velocity.toFixed(2)} Km/h</p>
-                          <p>Polyline Length: {distance.toFixed(2)} Km</p>
+                          <p>
+                            Average Velocity: {((velocity * 18) / 5).toFixed(2)}{" "}
+                            Km/h
+                          </p>
+                          <p>Track Number: {index + 1}</p>
                         </div>
                       </Tooltip>
                     </Polyline>
