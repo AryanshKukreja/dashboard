@@ -121,9 +121,9 @@ function Dashboard() {
           <div key={user}>
             <div className="mt-10 mb-10 border-t border-gray-500 w-full" />
             <p className="mb-5 text-xl">{user}</p>
-            <div className="relative inline-flex mt-4 mb-4">
+            <div className="hs-dropdown relative inline-flex mt-4 mb-4">
               <button
-                id={`hs-dropdown-${user}`}
+                id={`hs-dropdown-default-${user}`}
                 type="button"
                 className="hs-dropdown-toggle py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none"
                 onClick={() => toggleDropdown(user)}
@@ -148,8 +148,10 @@ function Dashboard() {
               </button>
 
               <div
-                className={`absolute left-0 w-full mt-2 bg-white shadow-md rounded-lg p-2 transition-opacity duration-200 ${
-                  dropdownOpen[user] ? "opacity-100" : "opacity-0 hidden"
+                className={`hs-dropdown-menu absolute left-0 min-w-60 w-full mt-2 bg-white shadow-md rounded-lg p-2 transition-[opacity,margin] duration-200 ${
+                  dropdownOpen[user]
+                    ? "opacity-100 top-8 start-0 z-100"
+                    : "opacity-0 hidden h-4 absolute -top-4 start-0"
                 }`}
                 style={{ maxHeight: "200px", overflowY: "auto" }}
                 aria-labelledby={`hs-dropdown-${user}`}
