@@ -81,6 +81,10 @@ function Dashboard() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handlePciTypeChange = (event) => {
+    setPciType(event.target.value);
+  };
+
   const getUserStats = (userData) => {
     const statDict = {
       1: { number_of_segments: 0, distance_travelled: 0, avg_velocity: 0 },
@@ -93,7 +97,7 @@ function Dashboard() {
     userData.forEach((entry) => {
       const pci = entry[1];
       const distance = entry[4] / 1000;
-      const velocity = entry[2];
+      const velocity = (entry[2] * 18) / 5;
 
       statDict[pci].number_of_segments += 1;
       statDict[pci].distance_travelled += distance;
@@ -192,7 +196,7 @@ function Dashboard() {
                       {data.distance_travelled.toFixed(2)}
                     </td>
                     <td className="text-left p-[8px] border border-white border-solid">
-                      {((data.avg_velocity * 18) / 5).toFixed(2)}
+                      {data.avg_velocity.toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -249,10 +253,10 @@ function Dashboard() {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="lucide lucide-panel-left-open"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="lucide lucide-panel-left-open"
         >
           <rect width="18" height="18" x="3" y="3" rx="2" />
           <path d="M9 3v18" />
@@ -282,10 +286,10 @@ function Dashboard() {
               viewBox="0 0 24 24"
               fill="none"
               stroke="white"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="lucide lucide-panel-left-close"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-panel-left-close"
             >
               <rect width="18" height="18" x="3" y="3" rx="2" />
               <path d="M9 3v18" />
@@ -323,7 +327,35 @@ function Dashboard() {
         <div className="flex flex-col items-center justify-start h-full mt-20 text-white">
           <div className="text-left w-full max-w-3xl">
             <div className="text-5xl font-bold">ROAD QUALITY DASHBOARD</div>
-
+            <div className="mt-4">
+              <span className="italic">Select PCI type:</span>
+              <div className="mt-2">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    className="form-radio text-red-600"
+                    name="pciType"
+                    value="Prediction based"
+                    checked={pciType === "Prediction based"}
+                    onChange={handlePciTypeChange}
+                  />
+                  <span className="ml-2">Prediction based</span>
+                </label>
+              </div>
+              <div className="mt-2">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    className="form-radio text-red-600"
+                    name="pciType"
+                    value="Velocity Based"
+                    checked={pciType === "Velocity Based"}
+                    onChange={handlePciTypeChange}
+                  />
+                  <span className="ml-2">Velocity Based</span>
+                </label>
+              </div>
+            </div>
             <div className="mt-8">
               <MapContainer
                 center={[17.42099148, 73.22085649]}
@@ -339,9 +371,9 @@ function Dashboard() {
                 {mapData.map((entry, index) => {
                   const user = entry[0];
                   const pciScore = entry[1];
-                  const velocity = entry[2];
+                  const velocity = (entry[2] * 18) / 5;
                   const polyline = entry[3];
-                  const distance = entry[4];
+                  const distance = entry[4] / 1000;
 
                   if (!selectedUsers[user]) return null;
 
@@ -366,10 +398,7 @@ function Dashboard() {
                         <div>
                           <p>User: {user}</p>
                           <p>PCI Score: {displayPci}</p>
-                          <p>
-                            Average Velocity: {((velocity * 18) / 5).toFixed(2)}{" "}
-                            Km/h
-                          </p>
+                          <p>Average Velocity: {velocity.toFixed(2)} Km/h</p>
                           <p>Track Number: {index + 1}</p>
                         </div>
                       </Tooltip>
