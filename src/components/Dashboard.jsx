@@ -23,7 +23,7 @@ function Dashboard() {
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [pciType, setPciType] = useState("Prediction based");
+  const [pciType, setPciType] = useState("Prediction Based");
   const [mapData, setMapData] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState({});
 
@@ -46,7 +46,7 @@ function Dashboard() {
   };
 
   const getColorAndPci = (pciType, pciScore, velocity) => {
-    if (pciType === "Prediction based") {
+    if (pciType === "Prediction Based") {
       return [colorDict[pciScore], pciScore];
     } else if (pciType === "Velocity Based") {
       if (0 <= velocity && velocity < 2.78) {
@@ -240,7 +240,35 @@ function Dashboard() {
       [user]: false,
     }));
   };
+  const viewPolyine = (user) => {
+    const filteredData = mapData.filter((entry) => entry[0] === user);
+    const tracks = filteredData.map((entry, index) => {
+      const colorAndPci = getColorAndPci(pciType, entry[1], entry[2]);
+      const color = colorAndPci[0];
 
+      return (
+        <Polyline
+          key={index}
+          positions={entry[3]}
+          pathOptions={{ color: color, weight: 5 }}
+          eventHandlers={{
+            click: () => viewTrackOnMap(user),
+          }}
+        >
+          <Tooltip>
+            <div>
+              <p>User: {user}</p>
+              <p>PCI Score: {colorAndPci[1]}</p>
+              <p>Average Velocity: {((entry[2] * 18) / 5).toFixed(2)} Km/h</p>
+              <p>Track Number: {index + 1}</p>
+            </div>
+          </Tooltip>
+        </Polyline>
+      );
+    });
+
+    return tracks;
+  };
   return (
     <div className="flex h-screen">
       <button
@@ -337,11 +365,11 @@ function Dashboard() {
                     type="radio"
                     className="form-radio text-red-600"
                     name="pciType"
-                    value="Prediction based"
-                    checked={pciType === "Prediction based"}
+                    value="Prediction Based"
+                    checked={pciType === "Prediction Based"}
                     onChange={handlePciTypeChange}
                   />
-                  <span className="ml-2">Prediction based</span>
+                  <span className="ml-2">Prediction Based</span>
                 </label>
               </div>
               <div className="mt-2">
@@ -370,43 +398,9 @@ function Dashboard() {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {mapData.map((entry, index) => {
-                  const user = entry[0];
-                  const pciScore = entry[1];
-                  const velocity = (entry[2] * 18) / 5;
-                  const polyline = entry[3];
-                  const distance = entry[4] / 1000;
-
-                  if (!selectedUsers[user]) return null;
-
-                  const [color, displayPci] = getColorAndPci(
-                    pciType,
-                    pciScore,
-                    velocity
-                  );
-
-                  return (
-                    <Polyline
-                      key={index}
-                      positions={polyline}
-                      color={color}
-                      pathOptions={{ user }}
-                      weight={5}
-                      eventHandlers={{
-                        click: () => viewTrackOnMap(user),
-                      }}
-                    >
-                      <Tooltip>
-                        <div>
-                          <p>User: {user}</p>
-                          <p>PCI Score: {displayPci}</p>
-                          <p>Average Velocity: {velocity.toFixed(2)} Km/h</p>
-                          <p>Track Number: {index + 1}</p>
-                        </div>
-                      </Tooltip>
-                    </Polyline>
-                  );
-                })}
+                {users
+                  .filter((user) => selectedUsers[user])
+                  .map((user) => viewPolyine(user))}
               </MapContainer>
             </div>
             <div className="mt-8">
