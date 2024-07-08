@@ -49,16 +49,14 @@ function Dashboard() {
     if (pciType === "Prediction Based") {
       return [colorDict[pciScore], pciScore];
     } else if (pciType === "Velocity Based") {
-      if (0 <= velocity && velocity < 2.78) {
-        return [colorDict[5.0], 5.0];
-      } else if (2.78 <= velocity && velocity < 5.56) {
-        return [colorDict[4.0], 4.0];
-      } else if (5.56 <= velocity && velocity < 8.34) {
-        return [colorDict[3.0], 3.0];
-      } else if (8.34 <= velocity && velocity < 10) {
+      if (0 <= velocity && velocity < 2.5) {
         return [colorDict[2.0], 2.0];
-      } else if (velocity >= 10) {
-        return [colorDict[1.0], 1.0];
+      } else if (velocity < 5) {
+        return [colorDict[3.0], 3.0];
+      } else if (velocity < 7.5) {
+        return [colorDict[4.0], 4.0];
+      } else if (velocity >= 7.5) {
+        return [colorDict[5.0], 5.0];
       }
     }
   };
