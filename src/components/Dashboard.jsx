@@ -417,68 +417,7 @@ function Dashboard() {
 
   return (
     <div className="flex h-screen">
-      <button
-        type="button"
-        className="fixed top-4 left-4 text-white p-2 rounded"
-        onClick={toggleSidebar}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="lucide lucide-panel-left-open"
-        >
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M9 3v18" />
-          <path d="m14 9 3 3-3 3" />
-        </svg>
-      </button>
-      <div
-        id="docs-sidebar"
-        className={`fixed top-0 left-0 bottom-0 z-[60] w-1/4 bg-gray-700 pt-7 pb-10 overflow-y-auto transition-transform duration-300 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="px-6 flex items-center justify-between text-xl font-semibold text-white">
-          <span>Road Details</span>
-          <button
-            type="button"
-            className="text-gray-500 hover:text-gray-600"
-            onClick={toggleSidebar}
-            aria-controls="docs-sidebar"
-            aria-label="Close sidebar"
-          >
-            <span className="sr-only">Close Sidebar</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-panel-left-close"
-            >
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M9 3v18" />
-              <path d="m16 15-3-3 3-3" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div
-        className={`flex-grow transition-all duration-300 ${
-          isSidebarOpen ? "ml-64" : "ml-0"
-        } pl-4`}
-      >
+      <div className={`flex-grow transition-all duration-300  pl-4`}>
         <div className="flex flex-col items-center justify-start h-full mt-20 text-white">
           <div className="text-left w-full max-w-3xl">
             <div className="text-5xl font-bold">ROAD QUALITY DASHBOARD</div>
