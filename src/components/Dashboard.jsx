@@ -25,7 +25,11 @@ function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [pciType, setPciType] = useState("Prediction Based");
   const [mapData, setMapData] = useState([]);
-  const [dropdownOpen, setDropdownOpen] = useState({});
+  const [selectedRoads, setSelectedRoads] = useState([]);
+  const [sortCriteria, setSortCriteria] = useState("date");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFilter, setSearchFilter] = useState("name");
 
   useEffect(() => {
     fetchData();
@@ -35,7 +39,7 @@ function Dashboard() {
     try {
       const response = await axios.get("https://pcibackend.xyz/get_data_dump");
       setMapData(response.data);
-      const userNames = new Set(response.data.map((entry) => entry[0]));
+      const userNames = new Set(response.data.map((entry) => entry.userName));
       setUsers([...userNames]);
       setSelectedUsers(
         [...userNames].reduce((acc, user) => ({ ...acc, [user]: true }), {})
@@ -61,20 +65,6 @@ function Dashboard() {
     }
   };
 
-  const toggleUserSelection = (user) => {
-    setSelectedUsers({
-      ...selectedUsers,
-      [user]: !selectedUsers[user],
-    });
-  };
-
-  const toggleDropdown = (user) => {
-    setDropdownOpen((prev) => ({
-      ...prev,
-      [user]: !prev[user],
-    }));
-  };
-
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -83,128 +73,279 @@ function Dashboard() {
     setPciType(event.target.value);
   };
 
-  const getUserStats = (userData) => {
-    const statDict = {
-      1: { number_of_segments: 0, distance_travelled: 0, avg_velocity: 0 },
-      2: { number_of_segments: 0, distance_travelled: 0, avg_velocity: 0 },
-      3: { number_of_segments: 0, distance_travelled: 0, avg_velocity: 0 },
-      4: { number_of_segments: 0, distance_travelled: 0, avg_velocity: 0 },
-      5: { number_of_segments: 0, distance_travelled: 0, avg_velocity: 0 },
-    };
-
-    userData.forEach((entry) => {
-      const pci = entry[1];
-      const distance = entry[4] / 1000;
-      const velocity = (entry[2] * 18) / 5;
-
-      statDict[pci].number_of_segments += 1;
-      statDict[pci].distance_travelled += distance;
-      statDict[pci].avg_velocity =
-        (statDict[pci].avg_velocity * statDict[pci].number_of_segments +
-          velocity) /
-        (statDict[pci].number_of_segments + 1);
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      const isSameKey = prev.key === key;
+      const direction = isSameKey && prev.direction === "asc" ? "desc" : "asc";
+      return { key, direction };
     });
-
-    return statDict;
   };
-  const renderUserStats = () => {
-    return users
-      .filter((user) => selectedUsers[user])
-      .map((user) => {
-        const userData = mapData.filter((entry) => entry[0] === user);
-        const stats = getUserStats(userData);
-        const userTracks = mapData.filter((entry) => entry[0] === user);
+  const renderSelectedRoadStats = () => {
+    const stats = computeSelectedRoadStats();
 
-        return (
-          <div key={user}>
-            <div className="mt-10 mb-10 border-t border-gray-500 w-full" />
-            <p className="mb-5 text-xl">{user}</p>
-            <div className="hs-dropdown relative inline-flex mt-4 mb-4">
-              <button
-                id={`hs-dropdown-default-${user}`}
-                type="button"
-                className="hs-dropdown-toggle py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none"
-                onClick={() => toggleDropdown(user)}
-              >
-                Tracks
-                <svg
-                  className={`size-4 transition-transform ${
-                    dropdownOpen[user] ? "rotate-180" : ""
-                  }`}
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
+    if (stats.length === 0) {
+      return <div className="text-white text-lg">No roads selected.</div>;
+    }
 
-              <div
-                className={`hs-dropdown-menu absolute left-0 min-w-60 w-full mt-2 bg-white shadow-md rounded-lg p-2 transition-[opacity,margin] duration-200 ${
-                  dropdownOpen[user]
-                    ? "opacity-100 top-8 start-0 z-100"
-                    : "opacity-0 hidden h-4 absolute -top-4 start-0"
-                }`}
-                style={{ maxHeight: "200px", overflowY: "auto" }}
-                aria-labelledby={`hs-dropdown-${user}`}
-              >
-                {userTracks.map((track, index) => (
-                  <a
-                    key={index}
-                    className="flex items-center gap-x-3.5 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
-                    href="#"
-                    onClick={() => viewTrackOnMap(track, user)}
-                  >
-                    Track {index + 1}
-                  </a>
-                ))}
-              </div>
+    // Group stats by the combination of username and road_name
+    const groupedStats = stats.reduce((acc, segment) => {
+      const key = `${segment.username}-${segment.road_name}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(segment);
+      return acc;
+    }, {});
+
+    // Calculate the summary data for PCI score-based grouping
+    const pciGroupedStats = stats.reduce((acc, segment) => {
+      console.log("Segment; ", acc);
+      const { pci_score, avg_velocity, distance } = segment;
+
+      if (!acc[pci_score]) {
+        acc[pci_score] = { totalDistance: 0, totalVelocity: 0, count: 0 };
+      }
+
+      acc[pci_score].totalDistance += parseFloat(distance);
+      acc[pci_score].totalVelocity += parseFloat(avg_velocity);
+      acc[pci_score].count += 1;
+
+      return acc;
+    }, {});
+
+    return (
+      <div className="mt-4">
+        {/* Individual tables for each user and road */}
+        {Object.keys(groupedStats).map((key, idx) => {
+          const [username, roadName] = key.split("-");
+          return (
+            <div key={idx} className="mb-8">
+              {/* Heading */}
+              <h1 className="text-xl font-bold mb-2 text-white">
+                User: {username} | Road: {roadName}
+              </h1>
+              {/* Table */}
+              <table className="w-full border-collapse bg-white shadow-md rounded-lg">
+                <thead className="bg-gray-600 text-white">
+                  <tr>
+                    <th className="p-3 border border-gray-300 text-left">
+                      PCI Score
+                    </th>
+                    <th className="p-3 border border-gray-300 text-left">
+                      Average Velocity (Km/h)
+                    </th>
+                    <th className="p-3 border border-gray-300 text-left">
+                      Distance (Km)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-700">
+                  {groupedStats[key].map((segment, segIdx) => (
+                    <tr key={segIdx}>
+                      <td className="p-3 border border-gray-200">
+                        {segment.pci_score}
+                      </td>
+                      <td className="p-3 border border-gray-200">
+                        {((segment.avg_velocity * 5) / 18).toFixed(5)}
+                      </td>
+                      <td className="p-3 border border-gray-200">
+                        {(segment.distance / 1000).toFixed(5)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="text-left p-[8px] border border-white border-solid">
-                    PCI
-                  </th>
-                  <th className="text-left p-[8px] border border-white border-solid">
-                    Number of Segments
-                  </th>
-                  <th className="text-left p-[8px] border border-white border-solid">
-                    Distance Travelled (Km)
-                  </th>
-                  <th className="text-left p-[8px] border border-white border-solid">
-                    Avg Speed (Km/hr)
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(stats).map(([pci, data]) => (
-                  <tr key={pci}>
-                    <td className="text-left p-[8px] border border-white border-solid">
-                      {pci}
+          );
+        })}
+
+        {/* Summary Table for PCI Score Grouping */}
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-white mb-4">
+            Summary Grouped by PCI Score
+          </h2>
+          <table className="w-full border-collapse bg-white shadow-md rounded-lg">
+            <thead className="bg-gray-600 text-white">
+              <tr>
+                <th className="p-3 border border-gray-300 text-left">
+                  PCI Score
+                </th>
+                <th className="p-3 border border-gray-300 text-left">
+                  Average Velocity (Km/h)
+                </th>
+                <th className="p-3 border border-gray-300 text-left">
+                  Total Distance (Km)
+                </th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700">
+              {Object.keys(pciGroupedStats).map((pci_score, idx) => {
+                const { totalDistance, totalVelocity, count } =
+                  pciGroupedStats[pci_score];
+                const avgVelocity = (totalVelocity / count).toFixed(2); // Calculate average velocity for this PCI score
+                return (
+                  <tr key={idx}>
+                    <td className="p-3 border border-gray-200">{pci_score}</td>
+                    <td className="p-3 border border-gray-200">
+                      {((avgVelocity * 5) / 18).toFixed(5)}
                     </td>
-                    <td className="text-left p-[8px] border border-white border-solid">
-                      {data.number_of_segments}
-                    </td>
-                    <td className="text-left p-[8px] border border-white border-solid">
-                      {data.distance_travelled.toFixed(2)}
-                    </td>
-                    <td className="text-left p-[8px] border border-white border-solid">
-                      {data.avg_velocity.toFixed(2)}
+                    <td className="p-3 border border-gray-200">
+                      {(totalDistance / 1000).toFixed(5)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const handleRoadSelection = (roadKey) => {
+    setSelectedRoads((prevSelectedRoads) =>
+      prevSelectedRoads.includes(roadKey)
+        ? prevSelectedRoads.filter((key) => key !== roadKey)
+        : [...prevSelectedRoads, roadKey]
+    );
+  };
+  const computeSelectedRoadStats = () => {
+    const selectedData = mapData.filter((data) =>
+      selectedRoads.some((road) => `${data.userName}-${data.roadName}` === road)
+    );
+
+    // Include username and road name in the returned stats
+    const stats = selectedData.flatMap((data) =>
+      data.segments.map((segment) => ({
+        username: data.userName,
+        road_name: data.roadName,
+        pci_score: segment.pci_score,
+        avg_velocity: segment.avg_velocity.toFixed(2),
+        distance: segment.distance.toFixed(2),
+      }))
+    );
+
+    return stats;
+  };
+
+  const sortedSegments = () => {
+    const uniqueEntries = new Map();
+
+    mapData
+      .filter((data) => selectedUsers[data.userName]) // Only selected users
+      .forEach((data) => {
+        if (!uniqueEntries.has(`${data.userName}-${data.roadName}`)) {
+          uniqueEntries.set(`${data.userName}-${data.roadName}`, {
+            date: data.date || "N/A",
+            roadName: data.roadName,
+            userName: data.userName,
+          });
+        }
       });
+
+    const allSegments = Array.from(uniqueEntries.values());
+
+    // Apply sorting logic
+    if (sortConfig.key) {
+      const key = sortConfig.key;
+      const order = sortConfig.direction === "asc" ? 1 : -1;
+
+      allSegments.sort((a, b) => {
+        if (key === "date") {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return order * (dateA - dateB);
+        }
+        if (a[key] < b[key]) return -1 * order;
+        if (a[key] > b[key]) return 1 * order;
+        return 0;
+      });
+    }
+
+    // Apply search filter logic
+    return allSegments.filter((item) => {
+      const query = searchQuery.toLowerCase();
+      if (searchFilter === "name") {
+        return item.userName.toLowerCase().includes(query);
+      }
+      if (searchFilter === "roadName") {
+        return item.roadName.toLowerCase().includes(query);
+      }
+      return false;
+    });
+  };
+
+  const renderUserStats = () => {
+    const allSegments = sortedSegments();
+
+    return (
+      <div>
+        <div className="flex items-center mb-4">
+          <select
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="mr-2 p-2 border border-gray-300 rounded text-gray-500"
+          >
+            <option value="name">Search by Name</option>
+            <option value="roadName">Search by Road Name</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Enter search query"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded text-gray-500"
+          />
+        </div>
+        <table className="w-full border-collapse bg-white shadow-md rounded-lg">
+          <thead className="bg-gray-600 text-white">
+            <tr>
+              <th
+                className="p-3 border border-gray-300 text-left cursor-pointer"
+                onClick={() => handleSort("date")}
+              >
+                Date
+              </th>
+              <th
+                className="p-3 border border-gray-300 text-left cursor-pointer"
+                onClick={() => handleSort("roadName")}
+              >
+                Road Name
+              </th>
+              <th
+                className="p-3 border border-gray-300 text-left cursor-pointer"
+                onClick={() => handleSort("userName")}
+              >
+                Name
+              </th>
+              <th className="p-3 border border-gray-300 text-left">Select</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedSegments().map((item, idx) => (
+              <tr key={idx} className="text-gray-700">
+                <td className="p-3 border border-gray-200">{item.date}</td>
+                <td className="p-3 border border-gray-200">{item.roadName}</td>
+                <td className="p-3 border border-gray-200">{item.userName}</td>
+                <td className="p-3 border border-gray-200">
+                  <input
+                    type="checkbox"
+                    name="roadSelection"
+                    value={`${item.userName}-${item.roadName}`}
+                    checked={selectedRoads.includes(
+                      `${item.userName}-${item.roadName}`
+                    )}
+                    onChange={() =>
+                      handleRoadSelection(`${item.userName}-${item.roadName}`)
+                    }
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   const Legend = () => (
@@ -238,35 +379,42 @@ function Dashboard() {
       [user]: false,
     }));
   };
-  const viewPolyine = (user) => {
-    const filteredData = mapData.filter((entry) => entry[0] === user);
-    const tracks = filteredData.map((entry, index) => {
-      const colorAndPci = getColorAndPci(pciType, entry[1], entry[2]);
-      const color = colorAndPci[0];
+  const viewPolyline = (user) => {
+    const filteredData = mapData.filter((entry) => entry.userName === user);
 
-      return (
-        <Polyline
-          key={index}
-          positions={entry[3]}
-          pathOptions={{ color: color, weight: 5 }}
-          eventHandlers={{
-            click: () => viewTrackOnMap(user),
-          }}
-        >
-          <Tooltip>
-            <div>
-              <p>User: {user}</p>
-              <p>PCI Score: {colorAndPci[1]}</p>
-              <p>Average Velocity: {((entry[2] * 18) / 5).toFixed(2)} Km/h</p>
-              <p>Track Number: {index + 1}</p>
-            </div>
-          </Tooltip>
-        </Polyline>
-      );
-    });
+    return filteredData.flatMap((entry) =>
+      entry.segments.map((segment, index) => {
+        const [color, pci] = getColorAndPci(
+          pciType,
+          segment.pci_score,
+          segment.avg_velocity
+        );
 
-    return tracks;
+        return (
+          <Polyline
+            key={`${user}-${entry.roadName}-${index}`}
+            positions={segment.coordinates}
+            pathOptions={{ color: color, weight: 5 }}
+            eventHandlers={{
+              click: () => viewTrackOnMap(user),
+            }}
+          >
+            <Tooltip>
+              <div>
+                <p>User: {user}</p>
+                <p>Road: {entry.roadName}</p>
+                <p>PCI Score: {pci}</p>
+                <p>Average Velocity: {segment.avg_velocity.toFixed(2)} Km/h</p>
+                <p>Distance Travelled: {segment.distance.toFixed(2)} km</p>
+                <p>Track Number: {index + 1}</p>
+              </div>
+            </Tooltip>
+          </Polyline>
+        );
+      })
+    );
   };
+
   return (
     <div className="flex h-screen">
       <button
@@ -298,7 +446,7 @@ function Dashboard() {
         }`}
       >
         <div className="px-6 flex items-center justify-between text-xl font-semibold text-white">
-          <span>Select User:</span>
+          <span>Road Details</span>
           <button
             type="button"
             className="text-gray-500 hover:text-gray-600"
@@ -325,27 +473,6 @@ function Dashboard() {
             </svg>
           </button>
         </div>
-        <nav className="p-6 w-full flex flex-col flex-wrap">
-          <ul className="space-y-1.5">
-            {users.map((user, index) => (
-              <li key={index} className="flex">
-                <input
-                  type="checkbox"
-                  className="shrink-0 mt-1 border-gray-200 rounded text-red-600 focus:ring-red-500 disabled:opacity-50 disabled:pointer-events-none"
-                  id={`user-checkbox-${index}`}
-                  checked={selectedUsers[user]}
-                  onChange={() => toggleUserSelection(user)}
-                />
-                <label
-                  htmlFor={`user-checkbox-${index}`}
-                  className="flex items-center gap-x-3.5 py-2 px-2.5 text-lg text-white rounded-lg cursor-pointer"
-                >
-                  {user}
-                </label>
-              </li>
-            ))}
-          </ul>
-        </nav>
       </div>
       <div
         className={`flex-grow transition-all duration-300 ${
@@ -398,13 +525,15 @@ function Dashboard() {
                 />
                 {users
                   .filter((user) => selectedUsers[user])
-                  .map((user) => viewPolyine(user))}
+                  .map((user) => viewPolyline(user))}
               </MapContainer>
             </div>
             <div className="mt-8">
               <div className="text-3xl font-bold mb-4">User Statistics</div>
+
               <div className="flex flex-col space-y-4">{renderUserStats()}</div>
             </div>
+            <div className="p-6">{renderSelectedRoadStats()}</div>
           </div>
         </div>
       </div>
