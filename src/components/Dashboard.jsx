@@ -38,16 +38,25 @@ function Dashboard() {
   const fetchData = async () => {
     try {
       const response = await axios.get("https://pcibackend.xyz/get_data_dump");
-      setMapData(response.data);
-      const userNames = new Set(response.data.map((entry) => entry.userName));
+      const data = response.data;
+
+      setMapData(data); // Store the full data
+
+      // Extract unique usernames
+      const userNames = new Set(data.map((entry) => entry.userName));
       setUsers([...userNames]);
+
+      // Prepare selected users for filtering or further operations
       setSelectedUsers(
         [...userNames].reduce((acc, user) => ({ ...acc, [user]: true }), {})
       );
+
+      console.log("Fetched Data:", data);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
   };
+
 
   const getColorAndPci = (pciType, pciScore, velocity) => {
     if (pciType === "Prediction Based") {
@@ -82,12 +91,12 @@ function Dashboard() {
   };
   const renderSelectedRoadStats = () => {
     const stats = computeSelectedRoadStats();
-
+  
     if (stats.length === 0) {
       return <div className="text-white text-lg">No roads selected.</div>;
     }
-
-    // Group stats by the combination of username and road_name
+  
+    // Group stats by username and road_name
     const groupedStats = stats.reduce((acc, segment) => {
       const key = `${segment.username}-${segment.road_name}`;
       if (!acc[key]) {
@@ -96,23 +105,19 @@ function Dashboard() {
       acc[key].push(segment);
       return acc;
     }, {});
-
-    // Calculate the summary data for PCI score-based grouping
-    const pciGroupedStats = stats.reduce((acc, segment) => {
-      console.log("Segment; ", acc);
-      const { pci_score, avg_velocity, distance } = segment;
-
-      if (!acc[pci_score]) {
-        acc[pci_score] = { totalDistance: 0, totalVelocity: 0, count: 0 };
+  
+    // Group stats by PCI score or Velocity based on pciType
+    const summaryStats = stats.reduce((acc, segment) => {
+      const key = pciType === "Prediction Based" ? segment.pci_score : segment.avg_velocity;
+      if (!acc[key]) {
+        acc[key] = { totalDistance: 0, totalVelocity: 0, count: 0 };
       }
-
-      acc[pci_score].totalDistance += parseFloat(distance);
-      acc[pci_score].totalVelocity += parseFloat(avg_velocity);
-      acc[pci_score].count += 1;
-
+      acc[key].totalDistance += parseFloat(segment.distance);
+      acc[key].totalVelocity += parseFloat(segment.avg_velocity);
+      acc[key].count += 1;
       return acc;
     }, {});
-
+  
     return (
       <div className="mt-4">
         {/* Individual tables for each user and road */}
@@ -158,17 +163,19 @@ function Dashboard() {
             </div>
           );
         })}
-
-        {/* Summary Table for PCI Score Grouping */}
+  
+        {/* Summary Table for PCI or Velocity */}
         <div className="mt-8">
           <h2 className="text-xl font-bold text-white mb-4">
-            Summary Grouped by PCI Score
+            {pciType === "Prediction Based"
+              ? "Summary Grouped by PCI Score"
+              : "Summary Grouped by Velocity"}
           </h2>
           <table className="w-full border-collapse bg-white shadow-md rounded-lg">
             <thead className="bg-gray-600 text-white">
               <tr>
                 <th className="p-3 border border-gray-300 text-left">
-                  PCI Score
+                  {pciType === "Prediction Based" ? "PCI Score" : "Velocity (Km/h)"}
                 </th>
                 <th className="p-3 border border-gray-300 text-left">
                   Average Velocity (Km/h)
@@ -179,13 +186,12 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody className="text-gray-700">
-              {Object.keys(pciGroupedStats).map((pci_score, idx) => {
-                const { totalDistance, totalVelocity, count } =
-                  pciGroupedStats[pci_score];
-                const avgVelocity = (totalVelocity / count).toFixed(2); // Calculate average velocity for this PCI score
+              {Object.keys(summaryStats).map((key, idx) => {
+                const { totalDistance, totalVelocity, count } = summaryStats[key];
+                const avgVelocity = (totalVelocity / count).toFixed(2); // Average velocity
                 return (
                   <tr key={idx}>
-                    <td className="p-3 border border-gray-200">{pci_score}</td>
+                    <td className="p-3 border border-gray-200">{key}</td>
                     <td className="p-3 border border-gray-200">
                       {((avgVelocity * 5) / 18).toFixed(5)}
                     </td>
@@ -201,6 +207,8 @@ function Dashboard() {
       </div>
     );
   };
+  
+  
 
   const handleRoadSelection = (roadKey) => {
     setSelectedRoads((prevSelectedRoads) =>
@@ -277,7 +285,7 @@ function Dashboard() {
 
   const renderUserStats = () => {
     const allSegments = sortedSegments();
-
+  
     return (
       <div>
         <div className="flex items-center mb-4">
@@ -319,6 +327,7 @@ function Dashboard() {
                 Name
               </th>
               <th className="p-3 border border-gray-300 text-left">Select</th>
+              <th className="p-3 border border-gray-300 text-left">Zoom to ROAD</th>
             </tr>
           </thead>
           <tbody>
@@ -340,6 +349,14 @@ function Dashboard() {
                     }
                   />
                 </td>
+                <td className="p-3 border border-gray-200">
+                  <button
+                    className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    onClick={() => handleZoomToRoad(item)}
+                  >
+                    Zoom
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -347,6 +364,7 @@ function Dashboard() {
       </div>
     );
   };
+  
 
   const Legend = () => (
     <div className="absolute w-32 bottom-5 right-5 bg-black p-5 rounded-lg shadow-md z-[1000]">
@@ -362,6 +380,68 @@ function Dashboard() {
       ))}
     </div>
   );
+
+ // Zoom Feature Added
+ const handleZoomToRoad = (roadKey) => {
+  console.log("Road key passed to handleZoomToRoad:", roadKey);
+
+  // Construct the unique key using roadName and userName for comparison
+  const { userName, roadName } = roadKey;
+
+  if (!userName || !roadName) {
+    console.warn("Invalid road key. Missing userName or roadName.");
+    return;
+  }
+
+  // Find the selected road data from mapData
+  const selectedRoad = mapData.find(
+    (data) =>
+      data.userName.trim() === userName.trim() &&
+      data.roadName === roadName
+  );
+
+  if (!selectedRoad) {
+    console.warn("No road data found for the selected key.");
+    return;
+  }
+
+  console.log("Selected road data:", selectedRoad);
+
+  if (!selectedRoad.segments || selectedRoad.segments.length === 0) {
+    console.warn("No segments found in the selected road data.");
+    return;
+  }
+
+  // Extract all coordinates from the segments
+  const roadCoordinates = selectedRoad.segments.flatMap(
+    (segment) => segment.coordinates
+  );
+
+  console.log("Extracted road coordinates:", roadCoordinates);
+
+  if (roadCoordinates.length === 0) {
+    console.warn("No coordinates found for the selected road.");
+    return;
+  }
+
+  // Create bounds for the map to fit
+  const bounds = roadCoordinates.map(([lat, lng]) => [lat, lng]);
+  console.log("Calculated bounds for fitBounds:", bounds);
+
+  if (!mapRef?.current) {
+    console.error("mapRef is not defined or is null.");
+    return;
+  }
+
+  // Adjust the map view to fit the selected road bounds
+  try {
+    mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+    console.log("Map zoom adjusted to road bounds.");
+  } catch (error) {
+    console.error("Error while fitting bounds on map:", error);
+  }
+};
+
 
   const mapRef = useRef();
 
@@ -407,6 +487,7 @@ function Dashboard() {
                 <p>Average Velocity: {segment.avg_velocity.toFixed(2)} Km/h</p>
                 <p>Distance Travelled: {segment.distance.toFixed(2)} km</p>
                 <p>Track Number: {index + 1}</p>
+                <p>Date:  {entry.date} </p>
               </div>
             </Tooltip>
           </Polyline>
